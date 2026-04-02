@@ -37,25 +37,30 @@ jobs:
       - name: Set version in gradle.properties
         run: |
           sed -i "s/^mod_version=.*/mod_version=${{ steps.version.outputs.name }}/" gradle.properties
-          sed -i "s/^modrinth_id=.*/modrinth_id=${{ secrets.MODRINTH_PROJECT_ID }}/" gradle.properties
 
-      - name: Build and publish to Modrinth
+      - name: Build
+        run: ./gradlew build
+
+      - name: Publish to Modrinth
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           MODRINTH_API_TOKEN: ${{ secrets.MODRINTH_API_TOKEN }}
-        run: ./gradlew build modrinth
+        run: ./gradlew modrinth
 
       - name: Get Modrinth version ID
         id: modrinth
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           MODRINTH_API_TOKEN: ${{ secrets.MODRINTH_API_TOKEN }}
         run: |
           VERSION_ID=$(curl -s \
             -H "Authorization: $MODRINTH_API_TOKEN" \
-            "https://api.modrinth.com/v2/project/${{ secrets.MODRINTH_PROJECT_ID }}/version?limit=1" \
+            "https://api.modrinth.com/v2/project/p4XN9Pna/version?limit=1" \
             | jq -r '.[0].id')
           echo "version_id=$VERSION_ID" >> $GITHUB_OUTPUT
 
       - name: Update server modpack
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
