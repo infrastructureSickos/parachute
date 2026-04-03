@@ -59,44 +59,11 @@ jobs:
             | jq -r '.[0].id')
           echo "version_id=$VERSION_ID" >> $GITHUB_OUTPUT
 
-      - name: Update server modpack
+      - name: Trigger modpack update
         if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          git config --global user.email "ci@infrastructuresickos.com"
-          git config --global user.name "InfrastructureSickos CI"
-
-          git clone "https://x-access-token:${GH_PAT}@github.com/infrastructureSickos/server.git" server-repo
-          cd server-repo
-
-          python3 - <<'PYEOF'
-          import json
-
-          with open('mods-list.json', 'r') as f:
-              mods = json.load(f)
-
-          version_id = "${{ steps.modrinth.outputs.version_id }}"
-          project_id = "${{ secrets.MODRINTH_PROJECT_ID }}"
-
-          existing = next((m for m in mods if m.get('name') == 'parachute'), None)
-          if existing:
-              existing['version_id'] = version_id
-              existing['modrinth_project_id'] = project_id
-          else:
-              mods.append({
-                  "name": "parachute",
-                  "modrinth_project_id": project_id,
-                  "version_id": version_id
-              })
-
-          with open('mods-list.json', 'w') as f:
-              json.dump(mods, f, indent=2)
-          print(f"Updated parachute to version {version_id}")
-          PYEOF
-
-          git add mods-list.json
-          git commit -m "Update parachute to ${{ steps.version.outputs.name }}
-
-          Co-Authored-By: Paperclip <noreply@paperclip.ing>"
-          git push
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.MODPACK_DISPATCH_TOKEN }}
+          repository: infrastructureSickos/minecraft-modpack
+          event-type: parachute-updated
+          client-payload: '{"version": "${{ github.ref_name }}"}'
